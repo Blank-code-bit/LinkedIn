@@ -1,15 +1,40 @@
 import { useLocalSearchParams } from "expo-router";
-import { Text } from "react-native";
-import posts from "../../../assets/data/posts.json";
+import { ActivityIndicator, Text } from "react-native";
 import PostListItem from "../../components/PostListItem";
+import { gql, useQuery } from "@apollo/client";
+import { ScrollView } from "react-native-gesture-handler";
 
-export default function PostDetails() {
+const query = gql`
+  query MyQuery($id: ID!) {
+    post(id: $id) {
+      content
+      id
+      image
+      profile {
+        id
+        name
+        image
+        position
+      }
+    }
+  }
+`;
+
+export default function PostDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const post = posts.find((post) => post.id === id);
+  const { loading, error, data } = useQuery(query, { variables: { id } });
 
-  if (!post) {
-    return <Text>Not found</Text>;
+  if (loading) {
+    return <ActivityIndicator />;
+  }
+  if (error) {
+    console.log(error);
+    return <Text>Something went wrong...</Text>;
   }
 
-  return <PostListItem post={post} />;
+  return (
+    <ScrollView>
+      <PostListItem post={data.post} />
+    </ScrollView>
+  );
 }

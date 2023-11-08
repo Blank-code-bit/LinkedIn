@@ -4,31 +4,57 @@ import { useNavigation, useRouter } from "expo-router";
 import { useLayoutEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { FontAwesome } from "@expo/vector-icons";
+import { gql, useMutation } from "@apollo/client";
+import { useUserContext } from "../../context/UserContext";
+
+const insertPost = gql`
+  mutation MyMutation($content: String, $image: String, $userId: ID) {
+    insertPost(content: $content, image: $image, userid: $userId) {
+      content
+      id
+      image
+      userid
+    }
+  }
+`;
 
 export default function NewPostScreen() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState<string | null>(null);
+  const { dbUser } = useUserContext();
+
+  const [handleMutation, { loading, error, data }] = useMutation(insertPost, {
+    refetchQueries: ["PostPaginatedListQuery"],
+  });
 
   const navigation = useNavigation();
   const router = useRouter();
 
-  const onPost = () => {
-    console.warn("Posting:", content);
+  const onPost = async () => {
+    console.warn(`Posting: ${content}`);
 
-    router.push("/(tabs)/");
-    setContent("");
-    setImage("");
+    try {
+      await handleMutation({ variables: { content, userId: dbUser.id } });
+
+      router.push("/(tabs)/");
+      setContent("");
+      setImage(null);
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <Pressable onPress={onPost} style={styles.postButton}>
-          <Text style={styles.postButtonText}>Submit</Text>
+          <Text style={styles.postButtonText}>
+            {loading ? "Submitting..." : "Submit"}
+          </Text>
         </Pressable>
       ),
     });
-  }, [onPost]);
+  }, [onPost, loading]);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
